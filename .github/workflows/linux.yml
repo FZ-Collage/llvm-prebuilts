@@ -1,0 +1,36 @@
+name: Build LLVM
+
+on:
+  push:
+    branches:
+      - run-actions
+      - main
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: write
+
+jobs:
+  configure-build-and-package-llvm-ubutnu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone LLVM repo
+        run: |
+          git clone --branch llvmorg-20.1.7 --depth 1 https://github.com/llvm/llvm-project.git
+        shell: bash
+
+      - name: Configure and build LLVM
+        run: |
+          cd llvm-project
+          cmake -G Ninja -B build -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" -DCMAKE_INSTALL_PREFIX=../llvm-20.1.7 \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+          cmake --install build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-20.1.7
+          path: llvm-project
