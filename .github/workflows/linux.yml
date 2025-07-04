@@ -11,33 +11,37 @@ on:
 permissions:
   contents: write
 
+env:
+  PYTHON_VERSION: 3.13.5
+  LLVM_VERSION: 20.1.7
+
 jobs:
   configure-build-and-package-llvm-ubutnu:
     runs-on: ubuntu-latest
     steps:
-      - name: Download release Python 3.10.18
+      - name: Download release Python
         uses: dsaltares/fetch-gh-release-asset@master
         with:
           repo: 'FZ-Collage/python-prebuilts'
-          version: 'tags/v3.10.18'
-          file: 'python-3.10.18.zip'
+          version: 'tags/v${{ env.PYTHON_VERSION }}'
+          file: 'python-${{ env.PYTHON_VERSION }}.zip'
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Python to /usr
         run: |
-          sudo unzip -q python-3.10.18.zip -d /usr/local
+          sudo unzip -q python-${{ env.PYTHON_VERSION }}.zip -d /usr/local
 
       - name: Clone LLVM repo
         run: |
           rm -rf ./*
-          git clone --branch llvmorg-20.1.7 --depth 1 https://github.com/llvm/llvm-project.git .
+          git clone --branch llvmorg-${{ env.LLVM_VERSION }} --depth 1 https://github.com/llvm/llvm-project.git .
         shell: bash
 
       - name: Configure and build LLVM
         run: |
           cd llvm
           cmake -G Ninja -B build -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ \
-            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" -DCMAKE_INSTALL_PREFIX=../llvm-20.1.7 \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" -DCMAKE_INSTALL_PREFIX=../llvm-${{ env.LLVM_VERSION }} \
             -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
           cmake --build build --config Release
           cmake --install build
@@ -45,5 +49,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: llvm-20.1.7
-          path: llvm-20.1.7
+          name: llvm-${{ env.LLVM_VERSION }}-linux
+          path: llvm-${{ env.LLVM_VERSION }}
