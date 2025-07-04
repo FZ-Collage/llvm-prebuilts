@@ -25,7 +25,7 @@ jobs:
 
       - name: Extract Python to /usr
         run: |
-          sudo unzip python-3.10.18.zip -d /usr
+          sudo unzip -q python-3.10.18.zip -d /usr/local
 
       - name: Clone LLVM repo
         run: |
