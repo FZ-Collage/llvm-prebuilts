@@ -15,19 +15,13 @@ jobs:
   configure-build-and-package-llvm-ubutnu:
     runs-on: ubuntu-latest
     steps:
-      - name: Set up GitHub CLI
-        uses: cli/cli-action@v2
-
-      - name: Authenticate GitHub CLI
-        run: gh auth setup-git
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Download release Python 3.10.18
-        run: |
-          gh release download v3.10.18 \
-            --repo FZ-Collage/python-prebuilts \
-            --pattern "python-3.10.18.zip"
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+          repo: 'FZ-Collage/python-prebuilts'
+          version: 'tags/v3.10.18'
+          file: 'python-3.10.18.zip'
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Python to /usr
         run: |
