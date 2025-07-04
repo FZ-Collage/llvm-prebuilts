@@ -37,7 +37,7 @@ jobs:
           cd llvm-project
           cmake -G Ninja -B build -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" -DCMAKE_INSTALL_PREFIX=../llvm-20.1.7 \
-            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
           cmake --build build --config Release
           cmake --install build
 
