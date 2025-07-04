@@ -15,6 +15,24 @@ jobs:
   configure-build-and-package-llvm-ubutnu:
     runs-on: ubuntu-latest
     steps:
+      - name: Set up GitHub CLI
+        uses: cli/cli-action@v2
+
+      - name: Authenticate GitHub CLI
+        run: gh auth setup-git
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download release Python 3.10.18
+        run: |
+          gh release download v3.10.18 \
+            --repo FZ-Collage/python-prebuilts \
+            --pattern "python-3.10.18.zip"
+
+      - name: Extract Python to /usr
+        run: |
+          sudo unzip python-3.10.18.zip -d /usr
+
       - name: Clone LLVM repo
         run: |
           git clone --branch llvmorg-20.1.7 --depth 1 https://github.com/llvm/llvm-project.git
