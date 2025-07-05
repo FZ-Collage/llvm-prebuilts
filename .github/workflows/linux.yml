@@ -31,12 +31,12 @@ jobs:
         with:
           repo: 'FZ-Collage/python-prebuilts'
           version: 'tags/v${{ env.PYTHON_VERSION }}'
-          file: 'python-${{ env.PYTHON_VERSION }}-linux-x86_64.zip'
+          file: 'python-${{ env.PYTHON_VERSION }}-linux-x86_64.tar.gz'
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract Python to /usr
         run: |
-          sudo unzip -q -o python-${{ env.PYTHON_VERSION }}-linux-x86_64.zip -d /usr/local
+          sudo tar -xvf python-${{ env.PYTHON_VERSION }}-linux-x86_64.tar.gz -C /usr/local
 
       - name: Configure and build LLVM
         run: |
