@@ -38,6 +38,7 @@ jobs:
 
       - name: Extract Python to PYTHON_INSTALL_PREFIX
         run: |
+          mkdir -p ${{ env.PYTHON_INSTALL_PREFIX }}
           tar -xvf python-${{ env.PYTHON_VERSION }}-linux-x86_64.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
 
       - name: Configure LLVM
