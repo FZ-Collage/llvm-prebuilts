@@ -1,4 +1,4 @@
-name: Build LLVM
+name: Build LLVM Ubuntu (x86_64)
 
 on:
   push:
@@ -14,11 +14,11 @@ permissions:
 env:
   PYTHON_SHORT_VERSION: "3.13"
   PYTHON_VERSION: 3.13.5
-  PYTHON_INSTALL_PREFIX: /usr/local
+  PYTHON_INSTALL_PREFIX: $HOME/.local/python
   LLVM_VERSION: 20.1.7
 
 jobs:
-  configure-build-and-package-llvm-ubutnu:
+  configure-build-and-package-llvm-ubuntu-x86_64:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -36,33 +36,43 @@ jobs:
           file: 'python-${{ env.PYTHON_VERSION }}-linux-x86_64.tar.gz'
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Python to /usr
+      - name: Extract Python to PYTHON_INSTALL_PREFIX
         run: |
-          sudo tar -xvf python-${{ env.PYTHON_VERSION }}-linux-x86_64.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
+          tar -xvf python-${{ env.PYTHON_VERSION }}-linux-x86_64.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
 
-      - name: Configure and build LLVM
+      - name: Configure LLVM
         run: |
           cd llvm
-          cmake -G Ninja -B build -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ \
+          cmake -G Ninja -B build \
+            -D CMAKE_C_COMPILER=clang \
+            -D CMAKE_CXX_COMPILER=clang++ \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-linux-x86_64 \
-            -DCMAKE_BUILD_TYPE=Release -DLLVM_BUILD_STATIC=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_BUILD_STATIC=OFF \
             -DLLVM_BUILD_LLVM_DYLIB=ON \
-            -DCMAKE_C_FLAGS="-fPIC" \
-            -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC" \
             -DLLVM_BUILD_EXAMPLES=OFF -DLLVM_INCLUDE_EXAMPLES=OFF \
-            -DLLVM_INCLUDE_DOCS=OFF \
-            -DLLVM_INCLUDE_UTILS=OFF \
+            -DLLVM_INCLUDE_DOCS=OFF -DLLVM_INCLUDE_UTILS=OFF \
             -DLLVM_BUILD_TESTS=OFF -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_BUILD_BENCHMARKS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
-            -DLLVM_ENABLE_ASSERTIONS=OFF \
-            -DCLANG_INCLUDE_TESTS=OFF \
-            -DLLDB_INCLUDE_TESTS=OFF \
-            -DPython3_EXECUTABLE=${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} \
-            -DPython3_INCLUDE_DIR=${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }} \
-            -DPython3_LIBRARY=${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so \
-            -DPython3_NumPy_INCLUDE_DIRS=${{ env.PYTHON_INSTALL_PREFIX }}/lib/python${{ env.PYTHON_SHORT_VERSION }}/site-packages/numpy/core/include
+            -DLLVM_ENABLE_ASSERTIONS=OFF -DCLANG_INCLUDE_TESTS=OFF -DLLDB_INCLUDE_TESTS=OFF \
+            -DPython3_EXECUTABLE="$${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPython3_INCLUDE_DIR="$${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPython3_LIBRARY="$${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so" \
+            -DPython3_NumPy_INCLUDE_DIRS="$${{ env.PYTHON_INSTALL_PREFIX }}/py/lib/python${{ env.PYTHON_SHORT_VERSION }}/site-packages/numpy/core/include" \
+            -DPYTHON_EXECUTABLE="$${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPYTHON_INCLUDE_DIR="$${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPYTHON_LIBRARY="$${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so"
+
+      - name: Build LLVM
+        run: |
+          cd llvm
           cmake --build build --config Release
+
+      - name: Install LLVM
+        run: |
+          cd llvm
           cmake --install build
 
       - name: tar.gz files
