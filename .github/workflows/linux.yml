@@ -43,6 +43,7 @@ jobs:
 
       - name: Configure LLVM
         run: |
+          export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
           cd llvm
           cmake -G Ninja -B build \
             -D CMAKE_C_COMPILER=clang \
@@ -68,6 +69,7 @@ jobs:
 
       - name: Build LLVM
         run: |
+          export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
           cd llvm
           cmake --build build --config Release
 
