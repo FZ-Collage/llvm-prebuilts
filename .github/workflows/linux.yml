@@ -61,7 +61,7 @@ jobs:
             -DPython3_EXECUTABLE=${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} \
             -DPython3_INCLUDE_DIR=${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }} \
             -DPython3_LIBRARY=${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so \
-            -DPython3_NumPy_INCLUDE_DIRS=${{ env.PYTHON_INSTALL_PREFIX }}/lib/python${{ env.PYTHON_SHORT_VERSION }}/site-packages/numpy/core/include \
+            -DPython3_NumPy_INCLUDE_DIRS=${{ env.PYTHON_INSTALL_PREFIX }}/lib/python${{ env.PYTHON_SHORT_VERSION }}/site-packages/numpy/core/include
           cmake --build build --config Release
           cmake --install build
 
