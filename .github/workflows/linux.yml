@@ -19,9 +19,6 @@ jobs:
   configure-build-and-package-llvm-ubutnu:
     runs-on: ubuntu-latest
     steps:
-      - name: Uninstall python3
-        run: sudo apt remove --purge python3
-
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
