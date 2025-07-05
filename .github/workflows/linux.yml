@@ -60,8 +60,13 @@ jobs:
           cmake --build build --config Release
           cmake --install build
 
+      - name: tar.gz files
+        run: |
+          cd llvm/llvm-${{ env.LLVM_VERSION }}-linux-x86_64
+          tar -cvf ../../llvm-${{ env.LLVM_VERSION }}-linux-x86_64.tar.gz *
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: llvm-${{ env.LLVM_VERSION }}-linux-x86_64
-          path: llvm/llvm-${{ env.LLVM_VERSION }}-linux-x86_64
+          path: llvm-${{ env.LLVM_VERSION }}-linux-x86_64.tar.gz
