@@ -21,12 +21,6 @@ jobs:
   configure-build-and-package-llvm-ubutnu:
     runs-on: ubuntu-latest
     steps:
-      - name: Remove python
-        run: |
-          sudo apt remove python3
-          sudo apt autoremove
-          sudo apt autoclean
-
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
