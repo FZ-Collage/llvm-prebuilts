@@ -46,7 +46,16 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-linux-x86_64 \
             -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_C_FLAGS="-fPIC" \
-            -DCMAKE_CXX_FLAGS="-fPIC"
+            -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DLLVM_INCLUDE_TESTS=OFF \
+            -DLLVM_INCLUDE_EXAMPLES=OFF \
+            -DLLVM_INCLUDE_DOCS=OFF \
+            -DLLVM_INCLUDE_UTILS=OFF \
+            -DLLVM_BUILD_TESTS=OFF \
+            -DLLVM_ENABLE_ASSERTIONS=OFF \
+            -DCLANG_INCLUDE_TESTS=OFF \
+            -DLLDB_INCLUDE_TESTS=OFF \
+            -DLLDB_INCLUDE_DOCS=OFF
           cmake --build build --config Release
           cmake --install build
 
