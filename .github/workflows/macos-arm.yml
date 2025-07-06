@@ -37,6 +37,7 @@ jobs:
 
       - name: Extract Python to /usr
         run: |
+          mkdir -p ${{ env.PYTHON_INSTALL_PREFIX }}
           tar xvf python-${{ env.PYTHON_VERSION }}-macos-arm.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
 
       - name: Configure LLVM
