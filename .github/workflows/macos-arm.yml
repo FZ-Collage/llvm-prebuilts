@@ -28,6 +28,9 @@ jobs:
           repository: llvm/llvm-project
           ref: llvmorg-${{ env.LLVM_VERSION }}
 
+      - name: Install Swig
+        run: brew install swig
+
       - name: Download release Python
         uses: dsaltares/fetch-gh-release-asset@master
         with:
