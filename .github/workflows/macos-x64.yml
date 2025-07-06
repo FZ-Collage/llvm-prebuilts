@@ -1,0 +1,88 @@
+name: Build LLVM MacOS (x86_64)
+
+on:
+  push:
+    branches:
+      - run-actions
+      - main
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: 3.13.5
+  PYTHON_INSTALL_PREFIX: $HOME/.local/python
+  LLVM_VERSION: 20.1.7
+
+jobs:
+  configure-build-and-package-llvm-macos-x64:
+    runs-on: macos-13
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          repository: llvm/llvm-project
+          ref: llvmorg-${{ env.LLVM_VERSION }}
+
+      - name: Download release Python
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+          repo: 'FZ-Collage/python-prebuilts'
+          version: 'tags/v${{ env.PYTHON_VERSION }}'
+          file: 'python-${{ env.PYTHON_VERSION }}-macos-x64.tar.gz'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Python to /usr
+        run: |
+          tar xvf python-${{ env.PYTHON_VERSION }}.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
+
+      - name: Configure LLVM
+        run: |
+          export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
+          cd llvm
+          cmake -G Ninja -B build \
+            -D CMAKE_C_COMPILER=clang \
+            -D CMAKE_CXX_COMPILER=clang++ \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
+            -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-macos-x64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_BUILD_STATIC=OFF \
+            -DLLVM_BUILD_LLVM_DYLIB=ON \
+            -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DLLVM_BUILD_EXAMPLES=OFF -DLLVM_INCLUDE_EXAMPLES=OFF \
+            -DLLVM_INCLUDE_DOCS=OFF -DLLVM_INCLUDE_UTILS=OFF \
+            -DLLVM_BUILD_TESTS=OFF -DLLVM_INCLUDE_TESTS=OFF \
+            -DLLVM_BUILD_BENCHMARKS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
+            -DLLVM_ENABLE_ASSERTIONS=OFF -DCLANG_INCLUDE_TESTS=OFF -DLLDB_INCLUDE_TESTS=OFF \
+            -DPython3_EXECUTABLE="${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPython3_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPython3_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so" \
+            -DPython3_NumPy_INCLUDE_DIRS="${{ env.PYTHON_INSTALL_PREFIX }}/py/lib/python${{ env.PYTHON_SHORT_VERSION }}/site-packages/numpy/core/include" \
+            -DPYTHON_EXECUTABLE="${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPYTHON_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPYTHON_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so"
+
+      - name: Build LLVM
+        run: |
+          export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
+          cd llvm
+          cmake --build build --config Release
+
+      - name: Install LLVM
+        run: |
+          cd llvm
+          cmake --install build
+
+      - name: tar.gz files
+        run: |
+          cd llvm/llvm-${{ env.LLVM_VERSION }}-macos-x64
+          tar -cvf ../../llvm-${{ env.LLVM_VERSION }}-macos-x64.tar.gz *
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-${{ env.LLVM_VERSION }}-macos-x64
+          path: llvm-${{ env.LLVM_VERSION }}-macos-x64.tar.gz
