@@ -14,7 +14,7 @@ permissions:
 env:
   PYTHON_SHORT_VERSION: "3.13"
   PYTHON_VERSION: 3.13.5
-  PYTHON_INSTALL_PREFIX: $HOME/.local/python
+  PYTHON_INSTALL_PREFIX: $HOME/.local/python3.13
   LLVM_VERSION: 20.1.7
 
 jobs:
@@ -81,7 +81,7 @@ jobs:
       - name: tar.gz files
         run: |
           cd llvm/llvm-${{ env.LLVM_VERSION }}-linux-x86_64
-          tar -cvf ../../llvm-${{ env.LLVM_VERSION }}-linux-x86_64.tar.gz *
+          tar -cvzf ../../llvm-${{ env.LLVM_VERSION }}-linux-x86_64.tar.gz *
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
