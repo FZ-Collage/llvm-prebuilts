@@ -41,6 +41,21 @@ jobs:
           mkdir -p ${{ env.PYTHON_INSTALL_PREFIX }}
           tar xvf python-${{ env.PYTHON_VERSION }}-macos-arm.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
 
+      - name: Test Python Binary Compatibility
+        run: |
+          export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
+          echo "Python location:"
+          ls -l ${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} || echo "Missing binary"
+          echo "---"
+          echo "Architecture & format:"
+          file ${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} || echo "Cannot check binary"
+          echo "---"
+          echo "Linked dynamic libraries:"
+          otool -L ${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} || echo "otool failed"
+          echo "---"
+          echo "Running python:"
+          ${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} --version || echo "Python run failed"
+
       - name: Configure LLVM
         run: |
           export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
