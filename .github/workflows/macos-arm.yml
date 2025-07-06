@@ -65,7 +65,7 @@ jobs:
             -DPython3_NumPy_INCLUDE_DIRS="${{ env.PYTHON_INSTALL_PREFIX }}/py/lib/python${{ env.PYTHON_SHORT_VERSION }}/site-packages/numpy/core/include" \
             -DPYTHON_EXECUTABLE="${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }}" \
             -DPYTHON_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
-            -DPYTHON_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.dylib
+            -DPYTHON_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.dylib"
 
       - name: Build LLVM
         run: |
