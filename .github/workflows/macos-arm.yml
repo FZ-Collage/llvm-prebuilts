@@ -17,7 +17,7 @@ env:
   LLVM_VERSION: 20.1.7
 
 jobs:
-  configure-build-and-package-llvm-ubutnu:
+  configure-build-and-package-llvm-macos-arm:
     runs-on: macos-latest
     steps:
       - name: Checkout Repository
@@ -37,7 +37,7 @@ jobs:
 
       - name: Extract Python to /usr
         run: |
-          tar xvf python-${{ env.PYTHON_VERSION }}.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
+          tar xvf python-${{ env.PYTHON_VERSION }}-macos-arm.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
 
       - name: Configure LLVM
         run: |
