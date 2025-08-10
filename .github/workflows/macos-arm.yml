@@ -13,9 +13,9 @@ permissions:
 
 env:
   PYTHON_SHORT_VERSION: "3.13"
-  PYTHON_VERSION: 3.13.5
+  PYTHON_VERSION: 3.13.6
   PYTHON_INSTALL_PREFIX: $HOME/.local/python3.13
-  LLVM_VERSION: 20.1.7
+  LLVM_VERSION: "20.1.8"
 
 jobs:
   configure-build-and-package-llvm-macos-arm:
