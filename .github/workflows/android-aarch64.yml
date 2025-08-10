@@ -88,7 +88,7 @@ jobs:
         run: |
           cd llvm
           cmake -G Ninja -B build -S . \
-            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb;compiler-rt" \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-android-aarch64 \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=ON \
