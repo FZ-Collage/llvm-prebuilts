@@ -84,19 +84,6 @@ jobs:
           unzip -q "$NDK_ZIP" -d "$USERPROFILE/ndk"
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
 
-      - name: Download release Python
-        uses: dsaltares/fetch-gh-release-asset@master
-        with:
-          repo: 'FZ-Collage/python-prebuilts'
-          version: 'tags/v${{ env.PYTHON_VERSION }}'
-          file: 'python-${{ env.PYTHON_VERSION }}-android-arm64-v8a.tar.gz'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract Python to PYTHON_INSTALL_PREFIX
-        run: |
-          mkdir -p ${{ env.PYTHON_INSTALL_PREFIX }}
-          tar -xvf python-${{ env.PYTHON_VERSION }}-android-arm64-v8a.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
-
       - name: Configure LLVM
         run: |
           cd llvm
@@ -104,20 +91,21 @@ jobs:
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb;compiler-rt" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-android-aarch64 \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_SHARED_LIBS=ON \
+            -DLLVM_BUILD_STATIC=OFF \
             -DCMAKE_C_FLAGS="-fPIC" \
             -DCMAKE_CXX_FLAGS="-fPIC" \
             -DLLVM_HOST_TRIPLE=x86_64-pc-windows-msvc \
             -DLLVM_TARGETS_TO_BUILD="AArch64" \
+            -DLLDB_ENABLE_PYTHON=OFF \
+            -DLLDB_ENABLE_LUA=OFF \
+            -DLLDB_ENABLE_LIBXML2=OFF \
+            -DLLDB_ENABLE_LZMA=OFF \
+            -DLLDB_ENABLE_CURSES=OFF \
+            -DLLDB_ENABLE_LIBEDIT=OFF \
             -DLLVM_DEFAULT_TARGET_TRIPLE=aarch64-linux-android \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM  \
-            -DPython3_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
-            -DPython3_EXECUTABLE="$(which python3)" \
-            -DPython3_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so" \
-            -DPYTHON_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
-            -DPYTHON_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so" \
-            -DPYTHON_EXECUTABLE="$(which python3)"
+            -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM
         shell: bash
 
       - name: fix_format_security
