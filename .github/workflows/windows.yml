@@ -28,7 +28,8 @@ jobs:
           repository: llvm/llvm-project
           ref: llvmorg-${{ env.LLVM_VERSION }}
 
-      - name: Configure and build LLVM
+      - name: Configure LLVM
+        shell: bash
         run: |
           cd llvm
           cmake -G Ninja -B build -S . \
@@ -37,15 +38,25 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
+            -DBUILD_SHARED_LIBS=ON \
             -DLLVM_BUILD_STATIC=OFF \
             -DLLVM_BUILD_EXAMPLES=OFF -DLLVM_INCLUDE_EXAMPLES=OFF \
             -DLLVM_INCLUDE_DOCS=OFF -DLLVM_INCLUDE_UTILS=OFF \
             -DLLVM_BUILD_TESTS=OFF -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_BUILD_BENCHMARKS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
             -DLLVM_ENABLE_ASSERTIONS=OFF -DCLANG_INCLUDE_TESTS=OFF -DLLDB_INCLUDE_TESTS=OFF
-          cmake --build build --config Release
-          cmake --install build
+
+      - name: Build LLVM
         shell: bash
+        run: |
+          cd llvm
+          cmake --build build --config Release
+
+      - name: Install LLVM
+        shell: bash
+        run: |
+          cd llvm
+          cmake --install build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
