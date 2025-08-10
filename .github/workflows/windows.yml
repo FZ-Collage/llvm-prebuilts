@@ -32,7 +32,7 @@ jobs:
         run: |
           cd llvm
           cmake -G Ninja -B build -S . \
-            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb;compiler-rt" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-windows \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=clang \
