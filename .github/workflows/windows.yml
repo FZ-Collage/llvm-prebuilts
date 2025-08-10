@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - run-actions
+      - windows-actions
       - main
   pull_request:
     branches:
@@ -29,7 +30,7 @@ jobs:
 
       - name: Configure and build LLVM
         run: |
-          cd llvm-llvm
+          cd llvm
           cmake -G Ninja -B build -S . \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-windows \
@@ -48,4 +49,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llvm-${{ env.LLVM_VERSION }}-windows
-          path: llvm-project/llvm/llvm-${{ env.LLVM_VERSION }}-windows
+          path: llvm/llvm-${{ env.LLVM_VERSION }}-windows
