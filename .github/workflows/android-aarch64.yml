@@ -37,6 +37,7 @@ jobs:
           ref: llvmorg-${{ env.LLVM_VERSION }}
 
       - name: Write fix_format_security script to file
+        shell: bash
         run: |
           cat << 'EOF' > fix_format_security.py
           #!/usr/bin/env python3
