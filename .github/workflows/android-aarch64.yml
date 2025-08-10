@@ -107,6 +107,9 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_C_FLAGS="-fPIC" \
             -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DLLVM_HOST_TRIPLE=x86_64-pc-windows-msvc \
+            -DLLVM_TARGETS_TO_BUILD="AArch64" \
+            -DLLVM_DEFAULT_TARGET_TRIPLE=aarch64-linux-android \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM  \
             -DPython3_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
