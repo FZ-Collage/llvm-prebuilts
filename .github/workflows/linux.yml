@@ -13,12 +13,12 @@ permissions:
 
 env:
   PYTHON_SHORT_VERSION: "3.13"
-  PYTHON_VERSION: 3.13.6
+  PYTHON_VERSION: "3.13.6"
   PYTHON_INSTALL_PREFIX: $HOME/.local/python3.13
   LLVM_VERSION: "20.1.8"
 
 jobs:
-  configure-build-and-package-llvm-ubuntu-x86_64:
+  build-llvm-ubuntu-x86_64:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
