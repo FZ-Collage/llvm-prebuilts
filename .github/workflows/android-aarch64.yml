@@ -1,0 +1,139 @@
+
+name: Build LLVM Android (aarch64) 
+
+on:
+  push:
+    branches:
+      - run-actions
+      - android-actions
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_SHORT_VERSION: "3.13"
+  PYTHON_VERSION: "3.13.6"
+  PYTHON_INSTALL_PREFIX: $HOME/.local/python3.13
+  LLVM_VERSION: "20.1.8"
+  ANDROID_API_LEVEL: 31
+  ANDROID_ABI: arm64-v8a
+  ANDROID_PLATFORM: android-31
+  ANDROID_HOST: aarch64-linux-android
+
+jobs:
+  build-llvm-android-aarch64:
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          repository: llvm/llvm-project
+          ref: llvmorg-${{ env.LLVM_VERSION }}
+
+      - name: Write fix_format_security script to file
+        run: |
+          cat << 'EOF' > fix_format_security.py
+          #!/usr/bin/env python3
+          import sys
+          import os
+          import re
+
+          def fix_file(path):
+              with open(path, 'rb') as f:
+                  content = f.read()
+              fixed_content = re.sub(rb'-Wformat\s+=format-security', b'-Wformat-security', content)
+              if fixed_content != content:
+                  backup_path = path + '.bak'
+                  if not os.path.exists(backup_path):
+                      os.rename(path, backup_path)
+                  with open(path, 'wb') as f:
+                      f.write(fixed_content)
+                  print(f'[PATCHED] {path}')
+
+          def main(build_dir):
+              for root, _, files in os.walk(build_dir):
+                  for file in files:
+                      if file.endswith(('.ninja', '.make', '.mk', '.cmake')):
+                          fix_file(os.path.join(root, file))
+
+          if __name__ == '__main__':
+              if len(sys.argv) != 2:
+                  print('Usage: fix_format_security.py <build_dir>')
+                  sys.exit(1)
+              main(sys.argv[1])
+          EOF
+          chmod +x fix_format_security.py
+
+      - name: Download and Extract Android NDK (bash)
+        shell: bash
+        run: |
+          export NDK_VERSION=r27c
+          export NDK_URL="https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-windows.zip"
+          export NDK_ZIP="ndk.zip"
+          export NDK_DIR="$USERPROFILE/ndk/android-ndk-${NDK_VERSION}"
+
+          mkdir -p "$USERPROFILE/ndk"
+          curl -fsSL "$NDK_URL" -o "$NDK_ZIP"
+          unzip -q "$NDK_ZIP" -d "$USERPROFILE/ndk"
+          echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
+
+      - name: Download release Python
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+          repo: 'FZ-Collage/python-prebuilts'
+          version: 'tags/v${{ env.PYTHON_VERSION }}'
+          file: 'python-${{ env.PYTHON_VERSION }}-android-arm64-v8a.tar.gz'
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Python to PYTHON_INSTALL_PREFIX
+        run: |
+          mkdir -p ${{ env.PYTHON_INSTALL_PREFIX }}
+          tar -xvf python-${{ env.PYTHON_VERSION }}-android-arm64-v8a.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
+
+      - name: Configure LLVM
+        run: |
+          cd llvm
+          cmake -G Ninja -B build -S . \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
+            -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-android-aarch64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_C_FLAGS="-fPIC" \
+            -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM  \
+            -DPython3_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPython3_EXECUTABLE="$(which python3)" \
+            -DPython3_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so" \
+            -DPYTHON_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
+            -DPYTHON_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/${{ env.ANDROID_HOST }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.so" \
+            -DPYTHON_EXECUTABLE="$(which python3)"
+        shell: bash
+
+      - name: fix_format_security
+        run: |
+          cd llvm
+          python fix_format_security.py build
+        shell: bash
+
+      - name: Build LLVM
+        run: |
+          cd llvm
+          cmake --build build --config Release
+
+      - name: Install LLVM
+        run: |
+          cd llvm
+          cmake --install build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-${{ env.LLVM_VERSION }}-windows
+          path: llvm-project/llvm/llvm-${{ env.LLVM_VERSION }}-windows
