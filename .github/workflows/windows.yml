@@ -1,0 +1,51 @@
+name: Build LLVM (Windows)
+
+on:
+  push:
+    branches:
+      - run-actions
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+env:
+  LLVM_VERSION: "20.1.8"
+
+jobs:
+  configure-build-and-package-llvm-windows:
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          repository: llvm/llvm-project
+          ref: llvmorg-${{ env.LLVM_VERSION }}
+
+      - name: Configure and build LLVM
+        run: |
+          cd llvm-llvm
+          cmake -G Ninja -B build -S . \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
+            -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-windows \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DLLVM_USE_CRT_RELEASE=MT \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_C_FLAGS="-fPIC" \
+            -DCMAKE_CXX_FLAGS="-fPIC"
+          cmake --build build --config Release
+          cmake --install build
+        shell: bash
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-${{ env.LLVM_VERSION }}-windows
+          path: llvm-project/llvm/llvm-${{ env.LLVM_VERSION }}-windows
