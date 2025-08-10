@@ -110,8 +110,7 @@ jobs:
 
       - name: fix_format_security
         run: |
-          cd llvm
-          python fix_format_security.py build
+          python fix_format_security.py llvm/build
         shell: bash
 
       - name: Build LLVM
