@@ -38,16 +38,11 @@ jobs:
             -DCMAKE_OSX_SYSROOT=$(xcrun --sdk macosx --show-sdk-path) \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-macos-x64 \
-            -D_DARWIN_C_SOURCE=ON \
-            -DLLVM_ENABLE_THREADS=ON \
-            -DLLVM_HAS_ATOMICS=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_ENABLE_LIBCXX=ON \
-            -DLLVM_ENABLE_THREADS=ON \
-            -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-            -DHAVE_CXX_ATOMICS64_WITHOUT_LIB=ON \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DLLVM_BUILD_STATIC=ON \
+            -DCMAKE_C_FLAGS="-fPIC" \
+            -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DLLVM_BUILD_LLVM_DYLIB=ON \
+            -DLLVM_BUILD_STATIC=OFF \
             -DLLDB_ENABLE_PYTHON=OFF \
             -DLLDB_ENABLE_LUA=OFF \
             -DLLDB_ENABLE_LIBXML2=OFF \
@@ -58,8 +53,7 @@ jobs:
             -DLLVM_INCLUDE_DOCS=OFF -DLLVM_INCLUDE_UTILS=OFF \
             -DLLVM_BUILD_TESTS=OFF -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_BUILD_BENCHMARKS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
-            -DLLVM_ENABLE_ASSERTIONS=OFF -DCLANG_INCLUDE_TESTS=OFF -DLLDB_INCLUDE_TESTS=OFF \
-            -DLIBCLANG_BUILD_STATIC=ON -DLLVM_ENABLE_PIC=OFF
+            -DLLVM_ENABLE_ASSERTIONS=OFF -DCLANG_INCLUDE_TESTS=OFF -DLLDB_INCLUDE_TESTS=OFF
 
       - name: Build LLVM
         run: |
