@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 env:
-  LLVM_VERSION: "20.1.8"
+  LLVM_VERSION: "22.0.0git"
 
 jobs:
   build-llvm-windows-AMD64:
@@ -25,26 +25,33 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          repository: llvm/llvm-project
-          ref: llvmorg-${{ env.LLVM_VERSION }}
+          repository: ZeunO8/llvm-project
+          ref: c-index-workaround
 
       - name: Configure LLVM
         shell: bash
         run: |
           cd llvm
           cmake -G Ninja -B build -S . \
-            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb;compiler-rt" \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-windows \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=clang \
             -DCMAKE_CXX_COMPILER=clang++ \
-            -DBUILD_SHARED_LIBS=ON \
-            -DLLVM_BUILD_STATIC=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DLLVM_BUILD_STATIC=ON \
+            -DLLDB_ENABLE_PYTHON=OFF \
+            -DLLDB_ENABLE_LUA=OFF \
+            -DLLDB_ENABLE_LIBXML2=OFF \
+            -DLLDB_ENABLE_LZMA=OFF \
+            -DLLDB_ENABLE_CURSES=OFF \
+            -DLLDB_ENABLE_LIBEDIT=OFF \
             -DLLVM_BUILD_EXAMPLES=OFF -DLLVM_INCLUDE_EXAMPLES=OFF \
             -DLLVM_INCLUDE_DOCS=OFF -DLLVM_INCLUDE_UTILS=OFF \
             -DLLVM_BUILD_TESTS=OFF -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_BUILD_BENCHMARKS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
-            -DLLVM_ENABLE_ASSERTIONS=OFF -DCLANG_INCLUDE_TESTS=OFF -DLLDB_INCLUDE_TESTS=OFF
+            -DLLVM_ENABLE_ASSERTIONS=OFF -DCLANG_INCLUDE_TESTS=OFF -DLLDB_INCLUDE_TESTS=OFF \
+            -DLIBCLANG_BUILD_STATIC=ON -DLLVM_ENABLE_PIC=OFF
 
       - name: Build LLVM
         shell: bash
@@ -58,8 +65,14 @@ jobs:
           cd llvm
           cmake --install build
 
+      - name: Package LLVM Install Folder
+        shell: bash
+        run: |
+          cd llvm/llvm-${{ env.LLVM_VERSION }}-windows
+          tar -cvzf ../../llvm-${{ env.LLVM_VERSION }}-windows.tar.gz *
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: llvm-${{ env.LLVM_VERSION }}-windows
-          path: llvm/llvm-${{ env.LLVM_VERSION }}-windows
+          path: llvm-${{ env.LLVM_VERSION }}-windows.tar.gz

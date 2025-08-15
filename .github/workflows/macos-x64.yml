@@ -12,10 +12,7 @@ permissions:
   contents: write
 
 env:
-  PYTHON_SHORT_VERSION: "3.13"
-  PYTHON_VERSION: "3.13.6"
-  PYTHON_INSTALL_PREFIX: $HOME/.local/python3.13
-  LLVM_VERSION: "20.1.8"
+  LLVM_VERSION: "22.0.0git"
 
 jobs:
   build-llvm-macos-x64:
@@ -25,69 +22,38 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          repository: llvm/llvm-project
-          ref: llvmorg-${{ env.LLVM_VERSION }}
+          repository: ZeunO8/llvm-project
+          ref: c-index-workaround
 
       - name: Install Swig
         run: brew install swig
 
-      - name: Download release Python
-        uses: dsaltares/fetch-gh-release-asset@master
-        with:
-          repo: 'FZ-Collage/python-prebuilts'
-          version: 'tags/v${{ env.PYTHON_VERSION }}'
-          file: 'python-${{ env.PYTHON_VERSION }}-macos-x64.tar.gz'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract Python to /usr
-        run: |
-          mkdir -p ${{ env.PYTHON_INSTALL_PREFIX }}
-          tar xvf python-${{ env.PYTHON_VERSION }}-macos-x64.tar.gz -C ${{ env.PYTHON_INSTALL_PREFIX }}
-
-      - name: Test Python Binary Compatibility
-        run: |
-          export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
-          echo "Python location:"
-          ls -l ${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} || echo "Missing binary"
-          echo "---"
-          echo "Architecture & format:"
-          file ${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} || echo "Cannot check binary"
-          echo "---"
-          echo "Linked dynamic libraries:"
-          otool -L ${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} || echo "otool failed"
-          echo "---"
-          echo "Running python:"
-          ${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }} --version || echo "Python run failed"
-
       - name: Configure LLVM
         run: |
-          export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
           cd llvm
           cmake -G Ninja -B build \
             -D CMAKE_C_COMPILER=clang \
             -D CMAKE_CXX_COMPILER=clang++ \
-            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb;compiler-rt" \
+            -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-macos-x64 \
             -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_BUILD_STATIC=OFF \
-            -DLLVM_BUILD_LLVM_DYLIB=ON \
-            -DCMAKE_C_FLAGS="-fPIC" -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DLLVM_BUILD_STATIC=ON \
+            -DLLDB_ENABLE_PYTHON=OFF \
+            -DLLDB_ENABLE_LUA=OFF \
+            -DLLDB_ENABLE_LIBXML2=OFF \
+            -DLLDB_ENABLE_LZMA=OFF \
+            -DLLDB_ENABLE_CURSES=OFF \
+            -DLLDB_ENABLE_LIBEDIT=OFF \
             -DLLVM_BUILD_EXAMPLES=OFF -DLLVM_INCLUDE_EXAMPLES=OFF \
             -DLLVM_INCLUDE_DOCS=OFF -DLLVM_INCLUDE_UTILS=OFF \
             -DLLVM_BUILD_TESTS=OFF -DLLVM_INCLUDE_TESTS=OFF \
             -DLLVM_BUILD_BENCHMARKS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
             -DLLVM_ENABLE_ASSERTIONS=OFF -DCLANG_INCLUDE_TESTS=OFF -DLLDB_INCLUDE_TESTS=OFF \
-            -DPython3_EXECUTABLE="${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }}" \
-            -DPython3_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
-            -DPython3_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.dylib" \
-            -DPython3_NumPy_INCLUDE_DIRS="${{ env.PYTHON_INSTALL_PREFIX }}/py/lib/python${{ env.PYTHON_SHORT_VERSION }}/site-packages/numpy/core/include" \
-            -DPYTHON_EXECUTABLE="${{ env.PYTHON_INSTALL_PREFIX }}/bin/python${{ env.PYTHON_SHORT_VERSION }}" \
-            -DPYTHON_INCLUDE_DIR="${{ env.PYTHON_INSTALL_PREFIX }}/include/python${{ env.PYTHON_SHORT_VERSION }}" \
-            -DPYTHON_LIBRARY="${{ env.PYTHON_INSTALL_PREFIX }}/lib/libpython${{ env.PYTHON_SHORT_VERSION }}.dylib"
+            -DLIBCLANG_BUILD_STATIC=ON -DLLVM_ENABLE_PIC=OFF
 
       - name: Build LLVM
         run: |
-          export LD_LIBRARY_PATH="${{ env.PYTHON_INSTALL_PREFIX }}/lib:$LD_LIBRARY_PATH"
           cd llvm
           cmake --build build --config Release
 
