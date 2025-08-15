@@ -33,8 +33,9 @@ jobs:
         run: |
           cd llvm
           cmake -G Ninja -B build \
-            -D CMAKE_C_COMPILER=clang \
-            -D CMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_COMPILER=$(xcrun --sdk macosx --find clang) \
+            -DCMAKE_CXX_COMPILER=$(xcrun --sdk macosx --find clang++) \
+            -DCMAKE_OSX_SYSROOT=$(xcrun --sdk macosx --show-sdk-path) \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-macos-x64 \
             -DCMAKE_BUILD_TYPE=Release \
