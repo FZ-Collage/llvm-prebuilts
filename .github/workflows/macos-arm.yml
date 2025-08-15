@@ -38,6 +38,7 @@ jobs:
             -DCMAKE_OSX_SYSROOT=$(xcrun --sdk macosx --show-sdk-path) \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-macos-arm \
+            -D_DARWIN_C_SOURCE=ON \
             -DCMAKE_BUILD_TYPE=Release \
             -DLLVM_ENABLE_LIBCXX=ON \
             -DLLVM_ENABLE_THREADS=ON \
