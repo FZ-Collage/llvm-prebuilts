@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 1
           repository: ZeunO8/llvm-project
-          ref: c-index-workaround
+          ref: zeun-fixes
 
       - name: Install Swig
         run: brew install swig
