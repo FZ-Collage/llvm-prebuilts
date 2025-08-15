@@ -5,6 +5,7 @@ on:
     branches:
       - run-actions
       - main
+      - macos-actions
   pull_request:
     branches:
       - main
@@ -37,6 +38,10 @@ jobs:
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-macos-arm \
             -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_ENABLE_LIBCXX=ON \
+            -DLLVM_ENABLE_THREADS=ON \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DLLVM_ENABLE_LIBATOMIC=OFF \
             -DBUILD_SHARED_LIBS=OFF \
             -DLLVM_BUILD_STATIC=ON \
             -DLLDB_ENABLE_PYTHON=OFF \
