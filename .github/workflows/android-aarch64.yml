@@ -93,6 +93,9 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=$ANDROID_ABI -DANDROID_PLATFORM=$ANDROID_PLATFORM \
             -DLLVM_DEFAULT_TARGET_TRIPLE=aarch64-linux-android \
+            -DCMAKE_C_FLAGS="-fPIC" \
+            -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DCMAKE_EXE_LINKER_FLAGS="-ldl" \
             -DBUILD_SHARED_LIBS=OFF \
             -DLLVM_BUILD_STATIC=ON \
             -DLLDB_ENABLE_PYTHON=OFF \
