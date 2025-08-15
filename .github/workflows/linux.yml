@@ -5,6 +5,7 @@ on:
     branches:
       - run-actions
       - main
+      - linux-actions
   pull_request:
     branches:
       - main
@@ -34,6 +35,8 @@ jobs:
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
             -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-linux-x86_64 \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS="-fPIC" \
+            -DCMAKE_CXX_FLAGS="-fPIC" \
             -DBUILD_SHARED_LIBS=OFF \
             -DLLVM_BUILD_STATIC=ON \
             -DLLDB_ENABLE_PYTHON=OFF \
