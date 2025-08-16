@@ -26,17 +26,23 @@ jobs:
     runs-on: windows-2025
 
     steps:
-      - name: Maximize build space
-        uses: AdityaGarg8/remove-unwanted-software@v5
+      - name: "Optimize Disk Space"
+        uses: "hugoalh/disk-space-optimizer-ghaction@v0.8.0"
         with:
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          remove-docker-images: 'true'
-          remove-large-packages: 'true'
-          remove-cached-tools: 'true'
-          verbose: 'true'
+          operate_sudo: "False"
+          general_include: ".+"
+          docker_include: ".+"
+          docker_prune: "True"
+          docker_clean: "True"
+          apt_prune: "False"
+          apt_clean: "False"
+          homebrew_prune: "False"
+          homebrew_clean: "False"
+          npm_prune: "True"
+          npm_clean: "True"
+          os_swap: "False"
+          wmic_enable: "True"
+          chocolatey_enable: "True"
 
       - name: Checkout Repository
         uses: actions/checkout@v4
