@@ -99,12 +99,6 @@ jobs:
           }
 
           # ------------------------------
-          # 7. MSBuild / NuGet intermediate artifacts
-          # ------------------------------
-          $msbuildPath = "C:\Users\runneradmin\AppData\Local\Microsoft\MSBuild"
-          if (Test-Path $msbuildPath) { Remove-Item -Recurse -Force $msbuildPath -ErrorAction SilentlyContinue }
-
-          # ------------------------------
           # 8. Browser caches
           # ------------------------------
           $browserCaches = @(
@@ -148,20 +142,6 @@ jobs:
               Remove-Item -Recurse -Force C:\Windows\SoftwareDistribution\Download\* -ErrorAction SilentlyContinue
               Start-Service wuauserv
           } catch {}
-
-          # ------------------------------
-          # 13. Dynamic: Remove largest reclaimable folders in Users\runneradmin
-          # ------------------------------
-          $home = "C:\Users\runneradmin"
-          $thresholdMB = 100  # Only target folders larger than 100MB
-          Get-ChildItem $home -Directory -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
-              try {
-                  $sizeMB = ((Get-ChildItem $_.FullName -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB)
-                  if ($sizeMB -ge $thresholdMB) {
-                      Remove-Item -Recurse -Force $_.FullName -ErrorAction SilentlyContinue
-                  }
-              } catch {}
-          }
 
           # ------------------------------
           # Done
