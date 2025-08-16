@@ -26,133 +26,186 @@ jobs:
     runs-on: windows-2025
 
     steps:
-      - name: Maximum Aggressive Disk Cleanup
+      - name: Ultra Aggressive (Safe) Disk Cleanup
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Write-Host "Starting maximum aggressive disk cleanup..." -ForegroundColor Cyan
+          Write-Host "Starting ultra-aggressive (safe) disk cleanup..." -ForegroundColor Cyan
 
           function Get-FreeSpaceGB($drive) {
-              $fs = Get-PSDrive -Name $drive
+              $fs = Get-PSDrive -Name $drive -ErrorAction SilentlyContinue
               if ($fs) { return [math]::Round($fs.Free/1GB,2) } else { return 0 }
           }
 
+          function Get-FolderSizeMB($path) {
+              try {
+                  $sum = (Get-ChildItem -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue | 
+                          Where-Object { -not $_.PSIsContainer } |
+                          Measure-Object -Property Length -Sum).Sum
+                  if (-not $sum) { return 0 }
+                  return [math]::Round($sum / 1MB,2)
+              } catch {
+                  return 0
+              }
+          }
+
+          # Config
           $before = Get-FreeSpaceGB C
-          Write-Host "Free space before cleanup: $before GB" -ForegroundColor Yellow
+          Write-Host ("Free space before cleanup: " + $before + " GB") -ForegroundColor Yellow
+          $ageDays = 3                # only delete folders last modified older than this
+          $minSizeMB = 50             # only delete folders >= this size
+          $maxDeletes = 12            # max number of dynamic deletions (safety)
+          $deleted = @()
 
-          # ------------------------------
-          # 1. TEMP directories
-          # ------------------------------
-          Remove-Item -Recurse -Force $env:TEMP\* -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force C:\Windows\Temp\* -ErrorAction SilentlyContinue
+          # Quick safe clear of temps & common caches (fast wins)
+          $fastPaths = @(
+              $env:TEMP,
+              "C:\Windows\Temp",
+              "$env:LOCALAPPDATA\Temp",
+              "$env:USERPROFILE\AppData\Local\Temp"
+          )
+          foreach ($p in $fastPaths) {
+              if ($p -and (Test-Path $p)) {
+                  try {
+                      Remove-Item -LiteralPath ($p + "\*") -Recurse -Force -ErrorAction SilentlyContinue
+                      Write-Host ("Cleared: " + $p)
+                  } catch { Write-Host ("Skipped clearing: " + $p + " -> " + $_) }
+              }
+          }
 
-          # ------------------------------
-          # 2. NuGet, NPM, pip, .NET caches
-          # ------------------------------
+          # Standard package/tool caches
           try { nuget locals all -clear } catch {}
           try { npm cache clean --force } catch {}
           try { python -m pip cache purge } catch {}
           try { dotnet nuget locals all --clear } catch {}
 
-          # ------------------------------
-          # 3. Old .NET SDKs (keep latest)
-          # ------------------------------
-          $sdks = Get-ChildItem "C:\Program Files\dotnet\sdk" -Directory -ErrorAction SilentlyContinue
-          if ($sdks.Count -gt 1) {
-              $keep = $sdks | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-              foreach ($sdk in $sdks) {
-                  if ($sdk.FullName -ne $keep.FullName) {
-                      Remove-Item -Recurse -Force $sdk.FullName -ErrorAction SilentlyContinue
+          # Target well-known user cache & repo folders (if present)
+          $targetPaths = @(
+              "$env:USERPROFILE\.nuget\packages",
+              "$env:USERPROFILE\.gradle\caches",
+              "$env:USERPROFILE\.m2\repository",
+              "$env:USERPROFILE\.android",
+              "$env:USERPROFILE\.android\avd",
+              "$env:USERPROFILE\.dotnet",
+              "$env:USERPROFILE\.cache",
+              "$env:APPDATA\npm-cache",
+              "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache",
+              "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache",
+              "$env:USERPROFILE\.cache\pip",
+              "$env:USERPROFILE\AppData\Local\Temp\nuget*",
+              "C:\ProgramData\chocolatey\lib",
+              "C:\ProgramData\chocolatey\lib-bkp"
+          )
+
+          foreach ($tp in $targetPaths) {
+              $expanded = $tp -replace '\\\*$', ''
+              try {
+                  if (Test-Path $expanded) {
+                      # compute size, age and remove if >= threshold OR if path name contains obvious cache keywords
+                      $sizeMB = Get-FolderSizeMB $expanded
+                      $lastWrite = (Get-Item -LiteralPath $expanded -ErrorAction SilentlyContinue).LastWriteTime
+                      $ageOK = $false
+                      if ($lastWrite) { $ageOK = ($lastWrite -lt (Get-Date).AddDays(-$ageDays)) }
+                      if ($sizeMB -ge $minSizeMB -or $expanded.ToLower().Contains("cache") -or $expanded.ToLower().Contains("gradle") -or $expanded.ToLower().Contains("android") -or $expanded.ToLower().Contains("nuget")) {
+                          try {
+                              Remove-Item -LiteralPath $expanded -Recurse -Force -ErrorAction SilentlyContinue
+                              $deleted += @{ Path = $expanded; SizeMB = $sizeMB }
+                              Write-Host ("Removed: " + $expanded + " (" + $sizeMB + " MB)")
+                          } catch { Write-Host ("Failed to remove: " + $expanded + " -> " + $_) }
+                      } else {
+                          Write-Host ("Skipped (small or recent): " + $expanded + " (" + $sizeMB + " MB)")
+                      }
+                  }
+              } catch {}
+          }
+
+          # Remove Node global modules (app data & ProgramData)
+          $nm1 = "$env:APPDATA\npm\node_modules"
+          $nm2 = "C:\ProgramData\nodejs\node_modules" 
+          foreach ($nm in @($nm1,$nm2)) {
+              if (Test-Path $nm) {
+                  $s = Get-FolderSizeMB $nm
+                  if ($s -ge 5) {
+                      try { Remove-Item -LiteralPath $nm -Recurse -Force -ErrorAction SilentlyContinue; $deleted += @{ Path=$nm; SizeMB=$s }; Write-Host ("Removed: " + $nm + " (" + $s + " MB)") } catch { }
                   }
               }
           }
 
-          # ------------------------------
-          # 4. Android SDKs / NDK / Emulator
-          # ------------------------------
-          $androidPaths = @(
-              "C:\ProgramData\Android",
-              "$env:LOCALAPPDATA\Android",
-              "$env:USERPROFILE\AppData\Local\Android"
-          )
-          foreach ($path in $androidPaths) {
-              if (Test-Path $path) {
-                  Remove-Item -Recurse -Force $path -ErrorAction SilentlyContinue
-              }
-          }
+          # DISM component cleanup (best-effort; may be slow but reclaims WinSxS)
+          try {
+              Write-Host "Attempting DISM component cleanup (StartComponentCleanup + ResetBase) - best-effort"
+              Start-Process -FilePath dism.exe -ArgumentList "/Online","/Cleanup-Image","/StartComponentCleanup" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+              Start-Process -FilePath dism.exe -ArgumentList "/Online","/Cleanup-Image","/ResetBase" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+          } catch { Write-Host ("DISM cleanup skipped or failed: " + $_) }
 
-          # ------------------------------
-          # 5. Node global modules
-          # ------------------------------
-          $nodeModules = "$env:APPDATA\npm\node_modules"
-          if (Test-Path $nodeModules) { Remove-Item -Recurse -Force $nodeModules -ErrorAction SilentlyContinue }
+          # Run Windows Update download cleanup again (best-effort)
+          try {
+              Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
+              Remove-Item -LiteralPath "C:\Windows\SoftwareDistribution\Download\*" -Recurse -Force -ErrorAction SilentlyContinue
+              Start-Service wuauserv -ErrorAction SilentlyContinue
+              Write-Host "Cleared Windows Update download cache."
+          } catch { Write-Host ("Windows Update cache cleanup failed: " + $_) }
 
-          # ------------------------------
-          # 6. Chocolatey caches/packages
-          # ------------------------------
-          $chocoPaths = @(
-              "C:\ProgramData\chocolatey\lib-bkp",
-              "C:\ProgramData\chocolatey\lib\*.nupkg"
-          )
-          foreach ($path in $chocoPaths) {
-              if (Test-Path $path) { Remove-Item -Recurse -Force $path -ErrorAction SilentlyContinue }
-          }
-
-          # ------------------------------
-          # 8. Browser caches
-          # ------------------------------
-          $browserCaches = @(
-              "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache",
-              "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache"
-          )
-          foreach ($cache in $browserCaches) {
-              if (Test-Path $cache) { Remove-Item -Recurse -Force $cache -ErrorAction SilentlyContinue }
-          }
-
-          # ------------------------------
-          # 9. Windows Installer / Patch Cache
-          # ------------------------------
-          $patchCache = "C:\Windows\Installer\$PatchCache$"
-          if (Test-Path $patchCache) { Remove-Item -Recurse -Force "$patchCache\*" -ErrorAction SilentlyContinue }
-
-          # ------------------------------
-          # 10. Logs / Telemetry
-          # ------------------------------
-          $logPaths = @(
-              "C:\ProgramData\Microsoft\VisualStudio\Logs",
-              "C:\ProgramData\Microsoft\Windows\WER"
-          )
-          foreach ($log in $logPaths) {
-              if (Test-Path $log) { Remove-Item -Recurse -Force $log -ErrorAction SilentlyContinue }
-          }
-
-          # ------------------------------
-          # 11. Docker cleanup (if installed)
-          # ------------------------------
+          # Docker prune (if present)
           if (Get-Command docker -ErrorAction SilentlyContinue) {
               try { docker system prune -af } catch {}
               try { docker volume prune -f } catch {}
           }
 
-          # ------------------------------
-          # 12. Windows Update cache
-          # ------------------------------
-          try {
-              Stop-Service wuauserv -Force
-              Remove-Item -Recurse -Force C:\Windows\SoftwareDistribution\Download\* -ErrorAction SilentlyContinue
-              Start-Service wuauserv
-          } catch {}
+          # Dynamic sweep: search common parent locations for large cache-like folders, delete top N
+          $parents = @("C:\ProgramData")
+          $candidates = @()
+          foreach ($parent in $parents) {
+              if (Test-Path $parent) {
+                  $children = Get-ChildItem -LiteralPath $parent -Directory -ErrorAction SilentlyContinue
+                  foreach ($ch in $children) {
+                      # quick filter by name keywords to avoid deleting arbitrary installs
+                      $name = $ch.Name.ToLower()
+                      if ($name -match "cache|temp|gradle|m2|nuget|android|emulator|avd|node_modules|npm|pip|vscode|jetbrains|sonar|opencover|coverage|msbuild|cmake|clang|llvm|artifacts") {
+                          $sizeMB = Get-FolderSizeMB $ch.FullName
+                          $lastWrite = $ch.LastWriteTime
+                          $ageOK = $false
+                          if ($lastWrite) { $ageOK = ($lastWrite -lt (Get-Date).AddDays(-$ageDays)) }
+                          if ($sizeMB -ge $minSizeMB -and $ageOK) {
+                              $candidates += [PSCustomObject]@{ Path = $ch.FullName; SizeMB = $sizeMB; LastWrite = $lastWrite }
+                          }
+                      }
+                  }
+              }
+          }
 
-          # ------------------------------
-          # Done
-          # ------------------------------
+          # sort candidates by size desc and delete up to $maxDeletes
+          $toDelete = $candidates | Sort-Object -Property SizeMB -Descending | Select-Object -First $maxDeletes
+          foreach ($item in $toDelete) {
+              try {
+                  Remove-Item -LiteralPath $item.Path -Recurse -Force -ErrorAction SilentlyContinue
+                  $deleted += @{ Path = $item.Path; SizeMB = $item.SizeMB }
+                  Write-Host ("Dynamically removed: " + $item.Path + " (" + $item.SizeMB + " MB)")
+              } catch { Write-Host ("Failed to remove dynamic candidate: " + $item.Path + " -> " + $_) }
+          }
+
+          # Final cleanup touches (safe)
+          try { Remove-Item -LiteralPath "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+          try { Remove-Item -LiteralPath "$env:LOCALAPPDATA\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+
+          # Report
           $after = Get-FreeSpaceGB C
           $freed = [math]::Round($after - $before,2)
-          Write-Host "Free space after cleanup: $after GB" -ForegroundColor Green
-          Write-Host "Total space reclaimed: $freed GB" -ForegroundColor Green
-          Write-Host "Maximum aggressive disk cleanup completed!" -ForegroundColor Cyan
+          Write-Host ("Free space after cleanup: " + $after + " GB") -ForegroundColor Green
+          Write-Host ("Total space reclaimed: " + $freed + " GB") -ForegroundColor Green
 
-          # Ensure exit code 0
+          if ($deleted.Count -gt 0) {
+              Write-Host "Deleted items summary:"
+              foreach ($d in $deleted) {
+                  Write-Host (" - " + $d.Path + " (" + $d.SizeMB + " MB)")
+              }
+          } else {
+              Write-Host "No large cache-like folders matched dynamic deletion criteria."
+          }
+
+          Write-Host "Ultra-aggressive (safe) disk cleanup finished." -ForegroundColor Cyan
+
+          # Always return success to avoid failing pipeline due to cleanup issues
           exit 0
 
       - name: Checkout Repository
