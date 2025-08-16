@@ -208,11 +208,11 @@ jobs:
           # Always return success to avoid failing pipeline due to cleanup issues
           exit 0
 
-      - name: Ensure Ninja
+      - name: Ensure Ninja and Swig
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          choco install ninja -y
+          choco install ninja swig -y
           ninja --version
 
       - name: Checkout Repository
