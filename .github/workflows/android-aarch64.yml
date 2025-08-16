@@ -41,8 +41,8 @@ jobs:
           npm_prune: "True"
           npm_clean: "True"
           os_swap: "False"
-          wmic_enable: "True"
-          chocolatey_enable: "True"
+          wmic_enable: "False"
+          chocolatey_enable: "False"
 
       - name: Checkout Repository
         uses: actions/checkout@v4
