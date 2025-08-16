@@ -26,23 +26,67 @@ jobs:
     runs-on: windows-2025
 
     steps:
-      - name: "Optimize Disk Space"
-        uses: "hugoalh/disk-space-optimizer-ghaction@v0.8.0"
-        with:
-          operate_sudo: "False"
-          general_include: ".+"
-          docker_include: ".+"
-          docker_prune: "True"
-          docker_clean: "True"
-          apt_prune: "False"
-          apt_clean: "False"
-          homebrew_prune: "False"
-          homebrew_clean: "False"
-          npm_prune: "True"
-          npm_clean: "True"
-          os_swap: "False"
-          wmic_enable: "False"
-          chocolatey_enable: "False"
+      - name: Reclaim Disk Space
+        shell: pwsh
+        run: |
+          Write-Host "Starting disk cleanup..." -ForegroundColor Cyan
+
+          function Get-FreeSpaceGB($drive) {
+              $fs = Get-PSDrive -Name $drive
+              if ($fs) { return [math]::Round($fs.Free/1GB,2) } else { return 0 }
+          }
+
+          $before = Get-FreeSpaceGB C
+          Write-Host "Free space before cleanup: $before GB" -ForegroundColor Yellow
+
+          # 1. Clear TEMP directories
+          Write-Host "Clearing TEMP directories..."
+          try { Remove-Item -Recurse -Force $env:TEMP\* -ErrorAction SilentlyContinue } catch {}
+          try { Remove-Item -Recurse -Force C:\Windows\Temp\* -ErrorAction SilentlyContinue } catch {}
+
+          # 2. NuGet cache
+          Write-Host "Clearing NuGet cache..."
+          try { nuget locals all -clear } catch {}
+
+          # 3. NPM cache
+          Write-Host "Clearing NPM cache..."
+          try { npm cache clean --force } catch {}
+
+          # 4. Chocolatey cache
+          Write-Host "Clearing Chocolatey cache..."
+          try { choco clean --yes } catch {}
+
+          # 5. pip cache
+          Write-Host "Clearing pip cache..."
+          try { python -m pip cache purge } catch {}
+
+          # 6. .NET cache
+          Write-Host "Clearing .NET NuGet cache..."
+          try { dotnet nuget locals all --clear } catch {}
+
+          # 7. Docker (if present)
+          Write-Host "Clearing Docker system and volumes..."
+          try { docker system prune -af } catch {}
+          try { docker volume prune -f } catch {}
+
+          # 8. Event logs
+          Write-Host "Clearing Windows event logs..."
+          try { wevtutil el | ForEach-Object { wevtutil cl $_ } } catch {}
+
+          # 9. Windows Update cache
+          Write-Host "Clearing Windows Update cache..."
+          try {
+              Stop-Service wuauserv -Force
+              Remove-Item -Recurse -Force C:\Windows\SoftwareDistribution\Download\* -ErrorAction SilentlyContinue
+              Start-Service wuauserv
+          } catch {}
+
+          # Done
+          $after = Get-FreeSpaceGB C
+          $freed = [math]::Round($after - $before,2)
+          Write-Host "Free space after cleanup: $after GB" -ForegroundColor Green
+          Write-Host "Total space reclaimed: $freed GB" -ForegroundColor Green
+          Write-Host "Disk cleanup completed!" -ForegroundColor Cyan
 
       - name: Checkout Repository
         uses: actions/checkout@v4
