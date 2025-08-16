@@ -26,10 +26,11 @@ jobs:
     runs-on: windows-2025
 
     steps:
-      - name: Reclaim Disk Space
+      - name: Maximum Aggressive Disk Cleanup
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Write-Host "Starting aggressive disk cleanup..." -ForegroundColor Cyan
+          Write-Host "Starting maximum aggressive disk cleanup..." -ForegroundColor Cyan
 
           function Get-FreeSpaceGB($drive) {
               $fs = Get-PSDrive -Name $drive
@@ -40,65 +41,108 @@ jobs:
           Write-Host "Free space before cleanup: $before GB" -ForegroundColor Yellow
 
           # ------------------------------
-          # 1. Remove temp directories
+          # 1. TEMP directories
           # ------------------------------
-          Write-Host "Clearing TEMP directories..."
-          try { Remove-Item -Recurse -Force $env:TEMP\* -ErrorAction SilentlyContinue } catch {}
-          try { Remove-Item -Recurse -Force C:\Windows\Temp\* -ErrorAction SilentlyContinue } catch {}
+          Remove-Item -Recurse -Force $env:TEMP\* -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force C:\Windows\Temp\* -ErrorAction SilentlyContinue
 
           # ------------------------------
-          # 2. Clear caches
+          # 2. NuGet, NPM, pip, .NET caches
           # ------------------------------
-          Write-Host "Clearing NuGet, NPM, pip, .NET caches..."
           try { nuget locals all -clear } catch {}
           try { npm cache clean --force } catch {}
           try { python -m pip cache purge } catch {}
           try { dotnet nuget locals all --clear } catch {}
 
           # ------------------------------
-          # 3. Remove large optional programs
+          # 3. Old .NET SDKs (keep latest)
           # ------------------------------
-          Write-Host "Uninstalling optional programs..."
-          $programsToRemove = @(
-              "Microsoft Visual Studio Build Tools",    # optional VS workloads
-              "Android SDK",                            # if not using Android
-              "Android NDK",                            # if not using Android
-              "Docker Desktop",                         # if not using Docker
-              "Git LFS",                                # optional
-              "Node.js",                                # remove if you can install manually
-              "Python",                                 # remove if workflow installs version itself
-              "Chocolatey"                              # optional
-          )
-
-          foreach ($prog in $programsToRemove) {
-              try {
-                  $pkg = Get-Package -Name $prog -ErrorAction SilentlyContinue
-                  if ($pkg) {
-                      Write-Host "Uninstalling $prog..."
-                      $pkg | Uninstall-Package -Force
-                  } else {
-                      Write-Host "$prog not found, skipping."
+          $sdks = Get-ChildItem "C:\Program Files\dotnet\sdk" -Directory -ErrorAction SilentlyContinue
+          if ($sdks.Count -gt 1) {
+              $keep = $sdks | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+              foreach ($sdk in $sdks) {
+                  if ($sdk.FullName -ne $keep.FullName) {
+                      Remove-Item -Recurse -Force $sdk.FullName -ErrorAction SilentlyContinue
                   }
-              } catch { Write-Host ("Failed to uninstall " + $prog + ": " + $_) }
+              }
           }
 
           # ------------------------------
-          # 4. Optional: Winget uninstall for modern packages
+          # 4. Android SDKs / NDK / Emulator
           # ------------------------------
-          Write-Host "Checking Winget packages..."
-          try {
-              $wingetPackages = winget list | Select-String "Android|Docker|Node.js|Python"
-              foreach ($line in $wingetPackages) {
-                  $name = ($line -split '\s{2,}')[0]
-                  Write-Host "Uninstalling $name via winget..."
-                  winget uninstall --id "$name" --silent --accept-package-agreements --accept-source-agreements
+          $androidPaths = @(
+              "C:\ProgramData\Android",
+              "$env:LOCALAPPDATA\Android",
+              "$env:USERPROFILE\AppData\Local\Android"
+          )
+          foreach ($path in $androidPaths) {
+              if (Test-Path $path) {
+                  Remove-Item -Recurse -Force $path -ErrorAction SilentlyContinue
               }
-          } catch { Write-Host ("Winget uninstall skipped: " + $_) }
+          }
 
           # ------------------------------
-          # 5. Windows Update cache
+          # 5. Node global modules
           # ------------------------------
-          Write-Host "Clearing Windows Update cache..."
+          $nodeModules = "$env:APPDATA\npm\node_modules"
+          if (Test-Path $nodeModules) { Remove-Item -Recurse -Force $nodeModules -ErrorAction SilentlyContinue }
+
+          # ------------------------------
+          # 6. Chocolatey caches/packages
+          # ------------------------------
+          $chocoPaths = @(
+              "C:\ProgramData\chocolatey\lib-bkp",
+              "C:\ProgramData\chocolatey\lib\*.nupkg"
+          )
+          foreach ($path in $chocoPaths) {
+              if (Test-Path $path) { Remove-Item -Recurse -Force $path -ErrorAction SilentlyContinue }
+          }
+
+          # ------------------------------
+          # 7. MSBuild / NuGet intermediate artifacts
+          # ------------------------------
+          $msbuildPath = "C:\Users\runneradmin\AppData\Local\Microsoft\MSBuild"
+          if (Test-Path $msbuildPath) { Remove-Item -Recurse -Force $msbuildPath -ErrorAction SilentlyContinue }
+
+          # ------------------------------
+          # 8. Browser caches
+          # ------------------------------
+          $browserCaches = @(
+              "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache",
+              "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache"
+          )
+          foreach ($cache in $browserCaches) {
+              if (Test-Path $cache) { Remove-Item -Recurse -Force $cache -ErrorAction SilentlyContinue }
+          }
+
+          # ------------------------------
+          # 9. Windows Installer / Patch Cache
+          # ------------------------------
+          $patchCache = "C:\Windows\Installer\$PatchCache$"
+          if (Test-Path $patchCache) { Remove-Item -Recurse -Force "$patchCache\*" -ErrorAction SilentlyContinue }
+
+          # ------------------------------
+          # 10. Logs / Telemetry
+          # ------------------------------
+          $logPaths = @(
+              "C:\ProgramData\Microsoft\VisualStudio\Logs",
+              "C:\ProgramData\Microsoft\Windows\WER"
+          )
+          foreach ($log in $logPaths) {
+              if (Test-Path $log) { Remove-Item -Recurse -Force $log -ErrorAction SilentlyContinue }
+          }
+
+          # ------------------------------
+          # 11. Docker cleanup (if installed)
+          # ------------------------------
+          if (Get-Command docker -ErrorAction SilentlyContinue) {
+              try { docker system prune -af } catch {}
+              try { docker volume prune -f } catch {}
+          }
+
+          # ------------------------------
+          # 12. Windows Update cache
+          # ------------------------------
           try {
               Stop-Service wuauserv -Force
               Remove-Item -Recurse -Force C:\Windows\SoftwareDistribution\Download\* -ErrorAction SilentlyContinue
@@ -106,13 +150,30 @@ jobs:
           } catch {}
 
           # ------------------------------
-          # 6. Done
+          # 13. Dynamic: Remove largest reclaimable folders in Users\runneradmin
+          # ------------------------------
+          $home = "C:\Users\runneradmin"
+          $thresholdMB = 100  # Only target folders larger than 100MB
+          Get-ChildItem $home -Directory -Recurse -ErrorAction SilentlyContinue | ForEach-Object {
+              try {
+                  $sizeMB = ((Get-ChildItem $_.FullName -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum / 1MB)
+                  if ($sizeMB -ge $thresholdMB) {
+                      Remove-Item -Recurse -Force $_.FullName -ErrorAction SilentlyContinue
+                  }
+              } catch {}
+          }
+
+          # ------------------------------
+          # Done
           # ------------------------------
           $after = Get-FreeSpaceGB C
           $freed = [math]::Round($after - $before,2)
           Write-Host "Free space after cleanup: $after GB" -ForegroundColor Green
           Write-Host "Total space reclaimed: $freed GB" -ForegroundColor Green
-          Write-Host "Aggressive disk cleanup completed!" -ForegroundColor Cyan
+          Write-Host "Maximum aggressive disk cleanup completed!" -ForegroundColor Cyan
+
+          # Ensure exit code 0
+          exit 0
 
       - name: Checkout Repository
         uses: actions/checkout@v4
