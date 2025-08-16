@@ -79,7 +79,7 @@ jobs:
                   } else {
                       Write-Host "$prog not found, skipping."
                   }
-              } catch { Write-Host "Failed to uninstall $prog: $_" }
+              } catch { Write-Host "Failed to uninstall $prog: ${_}" }
           }
 
           # ------------------------------
@@ -93,7 +93,7 @@ jobs:
                   Write-Host "Uninstalling $name via winget..."
                   winget uninstall --id "$name" --silent --accept-package-agreements --accept-source-agreements
               }
-          } catch { Write-Host "Winget uninstall skipped: $_" }
+          } catch { Write-Host "Winget uninstall skipped: ${_}" }
 
           # ------------------------------
           # 5. Windows Update cache
