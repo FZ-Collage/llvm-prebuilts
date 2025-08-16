@@ -212,9 +212,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
-              choco install ninja -y
-          }
+          choco install ninja -y
+          ninja --version
 
       - name: Checkout Repository
         uses: actions/checkout@v4
