@@ -26,187 +26,23 @@ jobs:
     runs-on: windows-2025
 
     steps:
-      - name: Ultra Aggressive (Safe) Disk Cleanup
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Write-Host "Starting ultra-aggressive (safe) disk cleanup..." -ForegroundColor Cyan
-
-          function Get-FreeSpaceGB($drive) {
-              $fs = Get-PSDrive -Name $drive -ErrorAction SilentlyContinue
-              if ($fs) { return [math]::Round($fs.Free/1GB,2) } else { return 0 }
-          }
-
-          function Get-FolderSizeMB($path) {
-              try {
-                  $sum = (Get-ChildItem -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue | 
-                          Where-Object { -not $_.PSIsContainer } |
-                          Measure-Object -Property Length -Sum).Sum
-                  if (-not $sum) { return 0 }
-                  return [math]::Round($sum / 1MB,2)
-              } catch {
-                  return 0
-              }
-          }
-
-          # Config
-          $before = Get-FreeSpaceGB C
-          Write-Host ("Free space before cleanup: " + $before + " GB") -ForegroundColor Yellow
-          $ageDays = 3                # only delete folders last modified older than this
-          $minSizeMB = 50             # only delete folders >= this size
-          $maxDeletes = 12            # max number of dynamic deletions (safety)
-          $deleted = @()
-
-          # Quick safe clear of temps & common caches (fast wins)
-          $fastPaths = @(
-              $env:TEMP,
-              "C:\Windows\Temp",
-              "$env:LOCALAPPDATA\Temp",
-              "$env:USERPROFILE\AppData\Local\Temp"
-          )
-          foreach ($p in $fastPaths) {
-              if ($p -and (Test-Path $p)) {
-                  try {
-                      Remove-Item -LiteralPath ($p + "\*") -Recurse -Force -ErrorAction SilentlyContinue
-                      Write-Host ("Cleared: " + $p)
-                  } catch { Write-Host ("Skipped clearing: " + $p + " -> " + $_) }
-              }
-          }
-
-          # Standard package/tool caches
-          try { nuget locals all -clear } catch {}
-          try { npm cache clean --force } catch {}
-          try { python -m pip cache purge } catch {}
-          try { dotnet nuget locals all --clear } catch {}
-
-          # Target well-known user cache & repo folders (if present)
-          $targetPaths = @(
-              "$env:USERPROFILE\.nuget\packages",
-              "$env:USERPROFILE\.gradle\caches",
-              "$env:USERPROFILE\.m2\repository",
-              "$env:USERPROFILE\.android",
-              "$env:USERPROFILE\.android\avd",
-              "$env:USERPROFILE\.dotnet",
-              "$env:USERPROFILE\.cache",
-              "$env:APPDATA\npm-cache",
-              "$env:LOCALAPPDATA\Microsoft\Edge\User Data\Default\Cache",
-              "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cache",
-              "$env:USERPROFILE\.cache\pip",
-              "$env:USERPROFILE\AppData\Local\Temp\nuget*",
-              "C:\ProgramData\chocolatey\lib",
-              "C:\ProgramData\chocolatey\lib-bkp"
-          )
-
-          foreach ($tp in $targetPaths) {
-              $expanded = $tp -replace '\\\*$', ''
-              try {
-                  if (Test-Path $expanded) {
-                      # compute size, age and remove if >= threshold OR if path name contains obvious cache keywords
-                      $sizeMB = Get-FolderSizeMB $expanded
-                      $lastWrite = (Get-Item -LiteralPath $expanded -ErrorAction SilentlyContinue).LastWriteTime
-                      $ageOK = $false
-                      if ($lastWrite) { $ageOK = ($lastWrite -lt (Get-Date).AddDays(-$ageDays)) }
-                      if ($sizeMB -ge $minSizeMB -or $expanded.ToLower().Contains("cache") -or $expanded.ToLower().Contains("gradle") -or $expanded.ToLower().Contains("android") -or $expanded.ToLower().Contains("nuget")) {
-                          try {
-                              Remove-Item -LiteralPath $expanded -Recurse -Force -ErrorAction SilentlyContinue
-                              $deleted += @{ Path = $expanded; SizeMB = $sizeMB }
-                              Write-Host ("Removed: " + $expanded + " (" + $sizeMB + " MB)")
-                          } catch { Write-Host ("Failed to remove: " + $expanded + " -> " + $_) }
-                      } else {
-                          Write-Host ("Skipped (small or recent): " + $expanded + " (" + $sizeMB + " MB)")
-                      }
-                  }
-              } catch {}
-          }
-
-          # Remove Node global modules (app data & ProgramData)
-          $nm1 = "$env:APPDATA\npm\node_modules"
-          $nm2 = "C:\ProgramData\nodejs\node_modules" 
-          foreach ($nm in @($nm1,$nm2)) {
-              if (Test-Path $nm) {
-                  $s = Get-FolderSizeMB $nm
-                  if ($s -ge 5) {
-                      try { Remove-Item -LiteralPath $nm -Recurse -Force -ErrorAction SilentlyContinue; $deleted += @{ Path=$nm; SizeMB=$s }; Write-Host ("Removed: " + $nm + " (" + $s + " MB)") } catch { }
-                  }
-              }
-          }
-
-          # DISM component cleanup (best-effort; may be slow but reclaims WinSxS)
-          try {
-              Write-Host "Attempting DISM component cleanup (StartComponentCleanup + ResetBase) - best-effort"
-              Start-Process -FilePath dism.exe -ArgumentList "/Online","/Cleanup-Image","/StartComponentCleanup" -NoNewWindow -Wait -ErrorAction SilentlyContinue
-              Start-Process -FilePath dism.exe -ArgumentList "/Online","/Cleanup-Image","/ResetBase" -NoNewWindow -Wait -ErrorAction SilentlyContinue
-          } catch { Write-Host ("DISM cleanup skipped or failed: " + $_) }
-
-          # Run Windows Update download cleanup again (best-effort)
-          try {
-              Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
-              Remove-Item -LiteralPath "C:\Windows\SoftwareDistribution\Download\*" -Recurse -Force -ErrorAction SilentlyContinue
-              Start-Service wuauserv -ErrorAction SilentlyContinue
-              Write-Host "Cleared Windows Update download cache."
-          } catch { Write-Host ("Windows Update cache cleanup failed: " + $_) }
-
-          # Docker prune (if present)
-          if (Get-Command docker -ErrorAction SilentlyContinue) {
-              try { docker system prune -af } catch {}
-              try { docker volume prune -f } catch {}
-          }
-
-          # Dynamic sweep: search common parent locations for large cache-like folders, delete top N
-          $parents = @("C:\ProgramData")
-          $candidates = @()
-          foreach ($parent in $parents) {
-              if (Test-Path $parent) {
-                  $children = Get-ChildItem -LiteralPath $parent -Directory -ErrorAction SilentlyContinue
-                  foreach ($ch in $children) {
-                      # quick filter by name keywords to avoid deleting arbitrary installs
-                      $name = $ch.Name.ToLower()
-                      if ($name -match "cache|temp|gradle|m2|nuget|android|emulator|avd|node_modules|npm|pip|vscode|jetbrains|sonar|opencover|coverage|msbuild|cmake|clang|llvm|artifacts") {
-                          $sizeMB = Get-FolderSizeMB $ch.FullName
-                          $lastWrite = $ch.LastWriteTime
-                          $ageOK = $false
-                          if ($lastWrite) { $ageOK = ($lastWrite -lt (Get-Date).AddDays(-$ageDays)) }
-                          if ($sizeMB -ge $minSizeMB -and $ageOK) {
-                              $candidates += [PSCustomObject]@{ Path = $ch.FullName; SizeMB = $sizeMB; LastWrite = $lastWrite }
-                          }
-                      }
-                  }
-              }
-          }
-
-          # sort candidates by size desc and delete up to $maxDeletes
-          $toDelete = $candidates | Sort-Object -Property SizeMB -Descending | Select-Object -First $maxDeletes
-          foreach ($item in $toDelete) {
-              try {
-                  Remove-Item -LiteralPath $item.Path -Recurse -Force -ErrorAction SilentlyContinue
-                  $deleted += @{ Path = $item.Path; SizeMB = $item.SizeMB }
-                  Write-Host ("Dynamically removed: " + $item.Path + " (" + $item.SizeMB + " MB)")
-              } catch { Write-Host ("Failed to remove dynamic candidate: " + $item.Path + " -> " + $_) }
-          }
-
-          # Final cleanup touches (safe)
-          try { Remove-Item -LiteralPath "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-          try { Remove-Item -LiteralPath "$env:LOCALAPPDATA\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue } catch {}
-
-          # Report
-          $after = Get-FreeSpaceGB C
-          $freed = [math]::Round($after - $before,2)
-          Write-Host ("Free space after cleanup: " + $after + " GB") -ForegroundColor Green
-          Write-Host ("Total space reclaimed: " + $freed + " GB") -ForegroundColor Green
-
-          if ($deleted.Count -gt 0) {
-              Write-Host "Deleted items summary:"
-              foreach ($d in $deleted) {
-                  Write-Host (" - " + $d.Path + " (" + $d.SizeMB + " MB)")
-              }
-          } else {
-              Write-Host "No large cache-like folders matched dynamic deletion criteria."
-          }
-
-          Write-Host "Ultra-aggressive (safe) disk cleanup finished." -ForegroundColor Cyan
-
-          # Always return success to avoid failing pipeline due to cleanup issues
-          exit 0
+      - name: "Optimize Disk Space"
+        uses: "hugoalh/disk-space-optimizer-ghaction@v0.8.0"
+        with:
+          operate_sudo: "False"
+          general_include: ".+"
+          docker_include: ".+"
+          docker_prune: "True"
+          docker_clean: "True"
+          apt_prune: "False"
+          apt_clean: "False"
+          homebrew_prune: "False"
+          homebrew_clean: "False"
+          npm_prune: "True"
+          npm_clean: "True"
+          os_swap: "False"
+          wmic_enable: "True"
+          chocolatey_enable: "True"
 
       - name: Ensure Ninja and Swig
         if: runner.os == 'Windows'
