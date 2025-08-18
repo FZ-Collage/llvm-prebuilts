@@ -132,7 +132,7 @@ jobs:
       - name: Build LLVM
         run: |
           cd llvm
-          cmake --build build --config Release
+          cmake --build build --config Release -j1
 
       - name: Install LLVM
         run: |
