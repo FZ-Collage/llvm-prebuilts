@@ -93,7 +93,7 @@ jobs:
           cd llvm
           cmake -G Ninja -B build -S . \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
-            -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-android-aarch64 \
+            "-DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-android-aarch64" \
             -DCMAKE_BUILD_TYPE=Release \
             -DLLVM_HOST_TRIPLE=x86_64-unknown-linux-gnu \
             -DLLVM_TARGETS_TO_BUILD="AArch64" \

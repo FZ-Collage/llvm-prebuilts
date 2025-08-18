@@ -33,7 +33,7 @@ jobs:
             -D CMAKE_C_COMPILER=clang \
             -D CMAKE_CXX_COMPILER=clang++ \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
-            -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-linux-x86_64 \
+            "-DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-linux-x86_64" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_FLAGS="-fPIC" \
             -DCMAKE_CXX_FLAGS="-fPIC" \

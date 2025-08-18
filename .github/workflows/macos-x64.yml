@@ -37,7 +37,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=$(xcrun --sdk macosx --find clang++) \
             -DCMAKE_OSX_SYSROOT=$(xcrun --sdk macosx --show-sdk-path) \
             -DLLVM_ENABLE_PROJECTS="clang;lld;clang-tools-extra;lldb" \
-            -DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-macos-x64 \
+            "-DCMAKE_INSTALL_PREFIX=llvm-${{ env.LLVM_VERSION }}-macos-x64" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_FLAGS="-fPIC" \
             -DCMAKE_CXX_FLAGS="-fPIC" \
