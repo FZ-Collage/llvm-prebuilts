@@ -82,11 +82,11 @@ jobs:
           export NDK_VERSION=r27c
           export NDK_URL="https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip"
           export NDK_ZIP="ndk.zip"
-          export NDK_DIR="$HOME/ndk/android-ndk-${NDK_VERSION}"
+          export NDK_DIR="${GITHUB_WORKSPACE}/ndk/android-ndk-${NDK_VERSION}"
 
-          mkdir -p "$HOME/ndk"
+          mkdir -p "${GITHUB_WORKSPACE}/ndk"
           curl -fsSL "$NDK_URL" -o "$NDK_ZIP"
-          unzip -q "$NDK_ZIP" -d "$HOME/ndk"
+          unzip -q "$NDK_ZIP" -d "${GITHUB_WORKSPACE}/ndk"
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
           rm -rf "$NDK_ZIP"
 
@@ -138,7 +138,7 @@ jobs:
 
       - name: Remove NDK to free up space
         run: |
-          rm -rf "$HOME/ndk"
+          rm -rf "$ANDROID_NDK_ROOT"
 
       - name: Install LLVM
         run: |
