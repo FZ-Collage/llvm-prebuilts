@@ -28,7 +28,7 @@ jobs:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
-          root-reserve-mb: 8192
+          root-reserve-mb: 4096
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
@@ -87,6 +87,7 @@ jobs:
           curl -fsSL "$NDK_URL" -o "$NDK_ZIP"
           unzip -q "$NDK_ZIP" -d "$HOME/ndk"
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
+          rm -rf "$NDK_ZIP"
 
       - name: Configure LLVM
         run: |
